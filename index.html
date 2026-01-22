@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Budget Pro - Jordan's 2026 Financial Planner</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/recharts@2.10.3/umd/Recharts.js"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; }
+    .nav-item { transition: all 0.2s ease; }
+    .nav-item:hover { background-color: #f3f4f6; }
+    .nav-item.active { background-color: #eff6ff; color: #1d4ed8; }
+    .stat-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+    .stat-card:hover { transform: translateY(-2px); box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); }
+    .input-field { transition: border-color 0.2s ease, box-shadow 0.2s ease; }
+    .input-field:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .fade-in { animation: fadeIn 0.3s ease-out; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useMemo, useEffect } = React;
+    const { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, AreaChart, Area } = Recharts;
+    const COLORS = ['#3b82f6', '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#6366f1'];
+
+    const Icons = {
+      Home: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>,
+      CreditCard: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>,
+      Target: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
+      TrendingUp: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>,
+      DollarSign: () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
+      Plus: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>,
+      Trash: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>,
+      ArrowUp: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>,
+      ArrowDown: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>,
+      ChevronRight: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>,
+      AlertTriangle: () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>,
+    };
+
+    const initialData = {
+      income: { businessLow: 10000, businessExpected: 12798, businessHigh: 16000, paycheck: 1974, other: 500 },
+      goals: { emergencyFundTarget: 25000, emergencyFundCurrent: 8500, monthlyDebtPayoff: 1000, monthlySavings: 2000 },
+      fixedExpenses: [
+        { id: 1, name: 'Rent', amount: 2229, category: 'Housing' },
+        { id: 2, name: 'ADP (Payroll)', amount: 1376, category: 'Business' },
+        { id: 3, name: 'Auto Payment', amount: 500, category: 'Transportation' },
+        { id: 4, name: 'Student Loans', amount: 283, category: 'Debt' },
+        { id: 5, name: 'Auto Insurance', amount: 168, category: 'Transportation' },
+        { id: 6, name: 'Storage', amount: 113, category: 'Housing' },
+        { id: 7, name: 'Duke Energy', amount: 102, category: 'Utilities' },
+        { id: 8, name: 'Google Fiber', amount: 70, category: 'Utilities' },
+      ],
+      subscriptions: [
+        { id: 1, name: 'Anthropic', amount: 103.67, category: 'Business Software' },
+        { id: 2, name: 'Superhuman', amount: 40, category: 'Business Software' },
+        { id: 3, name: 'Loom', amount: 20, category: 'Business Software' },
+        { id: 4, name: 'OpenAI', amount: 20, category: 'Business Software' },
+        { id: 5, name: 'Netflix', amount: 19.29, category: 'Entertainment' },
+        { id: 6, name: 'Google Workspace', amount: 16.80, category: 'Business Software' },
+        { id: 7, name: 'Audible', amount: 16.03, category: 'Entertainment' },
+        { id: 8, name: 'Google One', amount: 3.98, category: 'Cloud Storage' },
+      ],
+      variableExpenses: [
+        { id: 1, name: 'Groceries', budget: 559 },
+        { id: 2, name: 'Restaurants', budget: 521 },
+        { id: 3, name: 'Shopping', budget: 771 },
+        { id: 4, name: 'Gas & Transport', budget: 518 },
+        { id: 5, name: 'Entertainment', budget: 167 },
+        { id: 6, name: 'Personal Care', budget: 261 },
+      ],
+      giving: { tithe: 859 },
+      actuals: {
+        Jan: { income: 14200, expenses: { Groceries: 612, Restaurants: 580, Shopping: 450, 'Gas & Transport': 320, Entertainment: 210, 'Personal Care': 180 }},
+        Feb: { income: 0, expenses: {} }, Mar: { income: 0, expenses: {} }, Apr: { income: 0, expenses: {} },
+        May: { income: 0, expenses: {} }, Jun: { income: 0, expenses: {} }, Jul: { income: 0, expenses: {} },
+        Aug: { income: 0, expenses: {} }, Sep: { income: 0, expenses: {} }, Oct: { income: 0, expenses: {} },
+        Nov: { income: 0, expenses: {} }, Dec: { income: 0, expenses: {} },
+      },
+      debts: [
+        { id: 1, name: 'Auto Loan', balance: 15000, rate: 6.5, minPayment: 500 },
+        { id: 2, name: 'Student Loans', balance: 25000, rate: 5.5, minPayment: 283 },
+      ],
+    };
+
+    const loadData = () => {
+      try {
+        const saved = localStorage.getItem('budgetAppData');
+        return saved ? JSON.parse(saved) : initialData;
+      } catch { return initialData; }
+    };
+
+    const NavItem = ({ icon: Icon, label, active, onClick }) => (
+      <button onClick={onClick} className={`nav-item w-full flex items-center gap-3 px-4 py-3 text-left rounded-lg ${active ? 'active font-medium' : 'text-gray-600'}`}>
+        <Icon /><span>{label}</span>
+        {active && <span className="ml-auto"><Icons.ChevronRight /></span>}
+      </button>
+    );
+
+    const StatCard = ({ title, value, subtitle, icon: Icon, color, trend }) => (
+      <div className="stat-card bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-sm text-gray-500 mb-1">{title}</p>
+            <p className="text-2xl font-bold text-gray-900">{value}</p>
+            {subtitle && (
+              <div className={`flex items-center gap-1 mt-2 text-sm ${trend === 'up' ? 'text-green-600' : trend === 'down' ? 'text-red-500' : 'text-gray-500'}`}>
+                {trend === 'up' && <Icons.ArrowUp />}
+                {trend === 'down' && <Icons.ArrowDown />}
+                <span>{subtitle}</span>
+              </div>
+            )}
+          </div>
+          <div className={`p-3 rounded-xl ${color}`}><Icon /></div>
+        </div>
+      </div>
+    );
+
+    const ProgressBar = ({ label, current, target, color }) => {
+      const pct = Math.min((current / target) * 100, 100);
+      return (
+        <div className="mb-4">
+          <div className="flex justify-between mb-2">
+            <span className="text-sm font-medium text-gray-700">{label}</span>
+            <span className="text-sm text-gray-500">${current.toLocaleString()} / ${target.toLocaleString()}</span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+            <div className={`h-3 rounded-full transition-all duration-500 ${color}`} style={{ width: `${pct}%` }} />
+          </div>
+          <p className="text-right text-xs text-gray-500 mt-1">{pct.toFixed(1)}%</p>
+        </div>
+      );
+    };
+
+    function BudgetApp() {
+      const [activeNav, setActiveNav] = useState('dashboard');
+      const [data, setData] = useState(loadData);
+      const [scenario, setScenario] = useState('expected');
+      const [selectedMonth, setSelectedMonth] = useState('Jan');
+
+      useEffect(() => {
+        localStorage.setItem('budgetAppData', JSON.stringify(data));
+      }, [data]);
+
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+      const calc = useMemo(() => {
+        const bizIncome = scenario === 'low' ? data.income.businessLow : scenario === 'high' ? data.income.businessHigh : data.income.businessExpected;
+        const totalIncome = bizIncome + data.income.paycheck + data.income.other;
+        const totalFixed = data.fixedExpenses.reduce((s, e) => s + e.amount, 0);
+        const totalSubs = data.subscriptions.reduce((s, e) => s + e.amount, 0);
+        const totalVar = data.variableExpenses.reduce((s, e) => s + e.budget, 0);
+        const totalGiving = data.giving.tithe + data.goals.monthlySavings + data.goals.monthlyDebtPayoff;
+        const totalExp = totalFixed + totalSubs + totalVar + totalGiving;
+        const netCash = totalIncome - totalExp;
+        const totalDebt = data.debts.reduce((s, d) => s + d.balance, 0);
+        return { bizIncome, totalIncome, totalFixed, totalSubs, totalVar, totalGiving, totalExp, netCash, totalDebt };
+      }, [data, scenario]);
+
+      const categoryData = useMemo(() => {
+        const cats = {};
+        data.fixedExpenses.forEach(e => { cats[e.category] = (cats[e.category] || 0) + e.amount; });
+        data.subscriptions.forEach(s => { cats[s.category] = (cats[s.category] || 0) + s.amount; });
+        data.variableExpenses.forEach(v => { cats[v.name] = (cats[v.name] || 0) + v.budget; });
+        return Object.entries(cats).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+      }, [data]);
+
+      const monthlyData = months.map(m => {
+        const actual = data.actuals[m];
+        const actualVar = Object.values(actual.expenses).reduce((s, v) => s + v, 0);
+        return {
+          month: m,
+          budget: calc.totalExp,
+          actual: actual.income > 0 ? calc.totalFixed + calc.totalSubs + actualVar + calc.totalGiving : 0,
+        };
+      });
+
+      const updateIncome = (key, val) => setData(p => ({ ...p, income: { ...p.income, [key]: parseFloat(val) || 0 } }));
+      const updateGoal = (key, val) => setData(p => ({ ...p, goals: { ...p.goals, [key]: parseFloat(val) || 0 } }));
+      const updateGiving = (val) => setData(p => ({ ...p, giving: { ...p.giving, tithe: parseFloat(val) || 0 } }));
+
+      const addFixed = () => {
+        const maxId = Math.max(...data.fixedExpenses.map(e => e.id), 0);
+        setData(p => ({ ...p, fixedExpenses: [...p.fixedExpenses, { id: maxId + 1, name: 'New Expense', amount: 0, category: 'Other' }] }));
+      };
+
+      const updateFixed = (id, field, val) => {
+        setData(p => ({
+          ...p,
+          fixedExpenses: p.fixedExpenses.map(e => e.id === id ? { ...e, [field]: field === 'amount' ? parseFloat(val) || 0 : val } : e)
+        }));
+      };
+
+      const deleteFixed = (id) => setData(p => ({ ...p, fixedExpenses: p.fixedExpenses.filter(e => e.id !== id) }));
+
+      const addSub = () => {
+        const maxId = Math.max(...data.subscriptions.map(s => s.id), 0);
+        setData(p => ({ ...p, subscriptions: [...p.subscriptions, { id: maxId + 1, name: 'New Subscription', amount: 0, category: 'Other' }] }));
+      };
+
+      const updateSub = (id, field, val) => {
+        setData(p => ({
+          ...p,
+          subscriptions: p.subscriptions.map(s => s.id === id ? { ...s, [field]: field === 'amount' ? parseFloat(val) || 0 : val } : s)
+        }));
+      };
+
+      const deleteSub = (id) => setData(p => ({ ...p, subscriptions: p.subscriptions.filter(s => s.id !== id) }));
+
+      const updateVar = (id, val) => {
+        setData(p => ({
+          ...p,
+          variableExpenses: p.variableExpenses.map(v => v.id === id ? { ...v, budget: parseFloat(val) || 0 } : v)
+        }));
+      };
+
+      const updateActual = (month, name, val) => {
+        setData(p => ({
+          ...p,
+          actuals: {
+            ...p.actuals,
+            [month]: { ...p.actuals[month], expenses: { ...p.actuals[month].expenses, [name]: parseFloat(val) || 0 } }
+          }
+        }));
+      };
+
+      const updateDebt = (id, val) => {
+        setData(p => ({ ...p, debts: p.debts.map(d => d.id === id ? { ...d, balance: parseFloat(val) || 0 } : d) }));
+      };
+
+      // DASHBOARD
+      const Dashboard = () => (
+        <div className="space-y-6 fade-in">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Financial Dashboard</h1>
+              <p className="text-gray-500">Welcome back, Jordan! Here's your 2026 budget overview.</p>
+            </div>
+            <div className="flex bg-white rounded-lg border p-1 shadow-sm">
+              {['low', 'expected', 'high'].map(s => (
+                <button key={s} onClick={() => setScenario(s)}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${scenario === s ? 'bg-blue-600 text-white shadow' : 'text-gray-600 hover:bg-gray-100'}`}>
+                  {s.charAt(0).toUpperCase() + s.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard title="Monthly Income" value={`$${calc.totalIncome.toLocaleString()}`} icon={() => <Icons.DollarSign />} color="bg-blue-100 text-blue-600" />
+            <StatCard title="Monthly Expenses" value={`$${calc.totalExp.toLocaleString()}`} icon={() => <Icons.CreditCard />} color="bg-purple-100 text-purple-600" />
+            <StatCard title="Net Cash Flow" value={`$${calc.netCash.toLocaleString()}`} subtitle={calc.netCash >= 0 ? 'Positive' : 'Negative'} trend={calc.netCash >= 0 ? 'up' : 'down'} icon={() => <Icons.TrendingUp />} color={calc.netCash >= 0 ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'} />
+            <StatCard title="Total Debt" value={`$${calc.totalDebt.toLocaleString()}`} icon={() => <Icons.AlertTriangle />} color="bg-orange-100 text-orange-600" />
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 bg-white rounded-xl p-6 shadow-sm border">
+              <h3 className="text-lg font-semibold mb-4">Budget vs Actual (2026)</h3>
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={monthlyData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="month" tick={{ fill: '#6b7280', fontSize: 12 }} />
+                  <YAxis tick={{ fill: '#6b7280', fontSize: 12 }} tickFormatter={v => `$${(v/1000).toFixed(0)}k`} />
+                  <Tooltip formatter={v => `$${v.toLocaleString()}`} />
+                  <Legend />
+                  <Bar dataKey="budget" fill="#3b82f6" name="Budget" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="actual" fill="#10b981" name="Actual" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="bg-white rounded-xl p-6 shadow-sm border">
+              <h3 className="text-lg font-semibold mb-4">Spending by Category</h3>
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie data={categoryData.slice(0, 6)} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={2} dataKey="value">
+                    {categoryData.slice(0, 6).map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                  </Pie>
+                  <Tooltip formatter={v => `$${v.toLocaleString()}`} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="mt-2 space-y-1">
+                {categoryData.slice(0, 5).map((c, i) => (
+                  <div key={c.name} className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[i] }} />
+                      <span className="text-gray-600 truncate">{c.name}</span>
+                    </div>
+                    <span className="font-medium">${c.value.toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl p-6 shadow-sm border">
+            <h3 className="text-lg font-semibold mb-4">Goal Progress</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <ProgressBar label="Emergency Fund" current={data.goals.emergencyFundCurrent} target={data.goals.emergencyFundTarget} color="bg-blue-600" />
+              <ProgressBar label="Auto Loan Payoff" current={15000 - data.debts[0].balance} target={15000} color="bg-green-600" />
+              <ProgressBar label="Student Loan Payoff" current={25000 - data.debts[1].balance} target={25000} color="bg-purple-600" />
+              <ProgressBar label="Monthly Savings Goal" current={data.goals.monthlySavings} target={4000} color="bg-orange-500" />
+            </div>
+          </div>
+        </div>
+      );
+
+      // BUDGET PAGE
+      const BudgetPage = () => (
+        <div className="space-y-6 fade-in">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <h1 className="text-2xl font-bold text-gray-900">Monthly Budget</h1>
+            <select value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)}
+              className="input-field px-4 py-2 border rounded-lg focus:outline-none">
+              {months.map(m => <option key={m} value={m}>{m} 2026</option>)}
+            </select>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-white rounded-xl p-6 shadow-sm border">
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-green-600"><Icons.DollarSign /> Income</h3>
+              <div className="space-y-3">
+                {[
+                  { label: 'Business (Low)', key: 'businessLow' },
+                  { label: 'Business (Expected)', key: 'businessExpected' },
+                  { label: 'Business (High)', key: 'businessHigh' },
+                  { label: 'Paycheck', key: 'paycheck' },
+                  { label: 'Other', key: 'other' },
+                ].map(({ label, key }) => (
+                  <div key={key} className="flex items-center justify-between">
+                    <span className="text-gray-600">{label}</span>
+                    <div className="flex items-center">
+                      <span className="text-gray-400 mr-1">$</span>
+                      <input type="number" value={data.income[key]} onChange={e => updateIncome(key, e.target.value)}
+                        className="input-field w-28 px-2 py-1 text-right border rounded focus:outline-none" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl p-6 shadow-sm border">
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-blue-600"><Icons.Target /> Goals & Savings</h3>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">Emergency Fund Target</span>
+                  <div className="flex items-center">
+                    <span className="text-gray-400 mr-1">$</span>
+                    <input type="number" value={data.goals.emergencyFundTarget} onChange={e => updateGoal('emergencyFundTarget', e.target.value)}
+                      className="input-field w-28 px-2 py-1 text-right border rounded focus:outline-none" />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">Monthly Debt Payoff</span>
+                  <div className="flex items-center">
+                    <span className="text-gray-400 mr-1">$</span>
+                    <input type="number" value={data.goals.monthlyDebtPayoff} onChange={e => updateGoal('monthlyDebtPayoff', e.target.value)}
+                      className="input-field w-28 px-2 py-1 text-right border rounded focus:outline-none" />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">Monthly Savings</span>
+                  <div className="flex items-center">
+                    <span className="text-gray-400 mr-1">$</span>
+                    <input type="number" value={data.goals.monthlySavings} onChange={e => updateGoal('monthlySavings', e.target.value)}
+                      className="input-field w-28 px-2 py-1 text-right border rounded focus:outline-none" />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">Tithe/Giving</span>
+                  <div className="flex items-center">
+                    <span className="text-gray-400 mr-1">$</span>
+                    <input type="number" value={data.giving.tithe} onChange={e => updateGiving(e.target.value)}
+                      className="input-field w-28 px-2 py-1 text-right border rounded focus:outline-none" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl p-6 shadow-sm border">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Fixed Expenses</h3>
+              <button onClick={addFixed} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm">
+                <Icons.Plus /> Add
+              </button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="text-left text-gray-500 text-sm border-b">
+                    <th className="px-3 py-3">Name</th>
+                    <th className="px-3 py-3">Amount</th>
+                    <th className="px-3 py-3">Category</th>
+                    <th className="px-3 py-3 w-20">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.fixedExpenses.map(e => (
+                    <tr key={e.id} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="px-3 py-2">
+                        <input type="text" value={e.name} onChange={ev => updateFixed(e.id, 'name', ev.target.value)}
+                          className="input-field w-full px-2 py-1 border rounded focus:outline-none" />
+                      </td>
+                      <td className="px-3 py-2">
+                        <div className="flex items-center">
+                          <span className="text-gray-400 mr-1">$</span>
+                          <input type="number" value={e.amount} onChange={ev => updateFixed(e.id, 'amount', ev.target.value)}
+                            className="input-field w-24 px-2 py-1 text-right border rounded focus:outline-none" />
+                        </div>
+                      </td>
+                      <td className="px-3 py-2">
+                        <input type="text" value={e.category} onChange={ev => updateFixed(e.id, 'category', ev.target.value)}
+                          className="input-field w-full px-2 py-1 border rounded focus:outline-none" />
+                      </td>
+                      <td className="px-3 py-2">
+                        <button onClick={() => deleteFixed(e.id)} className="text-red-500 hover:text-red-700 p-1"><Icons.Trash /></button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="font-semibold bg-gray-50">
+                    <td className="px-3 py-3">Total</td>
+                    <td className="px-3 py-3">${calc.totalFixed.toLocaleString()}</td>
+                    <td colSpan="2"></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl p-6 shadow-sm border">
+            <h3 className="text-lg font-semibold mb-4">Variable Expenses - Budget vs Actual ({selectedMonth})</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="text-left text-gray-500 text-sm border-b">
+                    <th className="px-3 py-3">Category</th>
+                    <th className="px-3 py-3">Budget</th>
+                    <th className="px-3 py-3">Actual</th>
+                    <th className="px-3 py-3">Difference</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.variableExpenses.map(v => {
+                    const actual = data.actuals[selectedMonth]?.expenses[v.name] || 0;
+                    const diff = v.budget - actual;
+                    return (
+                      <tr key={v.id} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="px-3 py-2 font-medium">{v.name}</td>
+                        <td className="px-3 py-2">
+                          <div className="flex items-center">
+                            <span className="text-gray-400 mr-1">$</span>
+                            <input type="number" value={v.budget} onChange={e => updateVar(v.id, e.target.value)}
+                              className="input-field w-24 px-2 py-1 text-right border rounded focus:outline-none" />
+                          </div>
+                        </td>
+                        <td className="px-3 py-2">
+                          <div className="flex items-center">
+                            <span className="text-gray-400 mr-1">$</span>
+                            <input type="number" value={actual} onChange={e => updateActual(selectedMonth, v.name, e.target.value)}
+                              className="input-field w-24 px-2 py-1 text-right border rounded focus:outline-none" />
+                          </div>
+                        </td>
+                        <td className={`px-3 py-2 font-medium ${diff >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                          {diff >= 0 ? '+' : ''}${diff.toLocaleString()}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="font-semibold bg-gray-50">
+                    <td className="px-3 py-3">Total</td>
+                    <td className="px-3 py-3">${calc.totalVar.toLocaleString()}</td>
+                    <td className="px-3 py-3">${Object.values(data.actuals[selectedMonth]?.expenses || {}).reduce((s, v) => s + v, 0).toLocaleString()}</td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        </div>
+      );
+
+      // SUBSCRIPTIONS PAGE
+      const SubscriptionsPage = () => (
+        <div className="space-y-6 fade-in">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <h1 className="text-2xl font-bold text-gray-900">Subscriptions</h1>
+            <button onClick={addSub} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+              <Icons.Plus /> Add Subscription
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <StatCard title="Monthly Total" value={`$${calc.totalSubs.toFixed(2)}`} icon={() => <Icons.CreditCard />} color="bg-purple-100 text-purple-600" />
+            <StatCard title="Annual Cost" value={`$${(calc.totalSubs * 12).toLocaleString()}`} icon={() => <Icons.DollarSign />} color="bg-blue-100 text-blue-600" />
+            <StatCard title="Active Subscriptions" value={data.subscriptions.length} icon={() => <Icons.Target />} color="bg-green-100 text-green-600" />
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 bg-white rounded-xl p-6 shadow-sm border">
+              <h3 className="text-lg font-semibold mb-4">All Subscriptions</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="text-left text-gray-500 text-sm border-b">
+                      <th className="px-3 py-3">Service</th>
+                      <th className="px-3 py-3">Monthly</th>
+                      <th className="px-3 py-3">Annual</th>
+                      <th className="px-3 py-3">Category</th>
+                      <th className="px-3 py-3 w-16"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.subscriptions.map(s => (
+                      <tr key={s.id} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="px-3 py-2">
+                          <input type="text" value={s.name} onChange={e => updateSub(s.id, 'name', e.target.value)}
+                            className="input-field w-full px-2 py-1 border rounded focus:outline-none font-medium" />
+                        </td>
+                        <td className="px-3 py-2">
+                          <div className="flex items-center">
+                            <span className="text-gray-400 mr-1">$</span>
+                            <input type="number" step="0.01" value={s.amount} onChange={e => updateSub(s.id, 'amount', e.target.value)}
+                              className="input-field w-20 px-2 py-1 text-right border rounded focus:outline-none" />
+                          </div>
+                        </td>
+                        <td className="px-3 py-2 text-gray-600">${(s.amount * 12).toFixed(2)}</td>
+                        <td className="px-3 py-2">
+                          <span className="px-2 py-1 bg-gray-100 rounded-full text-xs">{s.category}</span>
+                        </td>
+                        <td className="px-3 py-2">
+                          <button onClick={() => deleteSub(s.id)} className="text-red-500 hover:text-red-700 p-1"><Icons.Trash /></button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="font-semibold bg-gray-50">
+                      <td className="px-3 py-3">Total</td>
+                      <td className="px-3 py-3">${calc.totalSubs.toFixed(2)}</td>
+                      <td className="px-3 py-3">${(calc.totalSubs * 12).toFixed(2)}</td>
+                      <td colSpan="2"></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl p-6 shadow-sm border">
+              <h3 className="text-lg font-semibold mb-4">Breakdown</h3>
+              <ResponsiveContainer width="100%" height={250}>
+                <PieChart>
+                  <Pie data={data.subscriptions.map(s => ({ name: s.name, value: s.amount }))} cx="50%" cy="50%" outerRadius={80} dataKey="value"
+                    label={({ name }) => `${name.slice(0, 8)}${name.length > 8 ? '..' : ''}`}>
+                    {data.subscriptions.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                  </Pie>
+                  <Tooltip formatter={v => `$${v.toFixed(2)}`} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+      );
+
+      // GOALS PAGE
+      const GoalsPage = () => (
+        <div className="space-y-6 fade-in">
+          <h1 className="text-2xl font-bold text-gray-900">Financial Goals</h1>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-white rounded-xl p-6 shadow-sm border">
+              <h3 className="text-lg font-semibold mb-4 text-blue-600">Emergency Fund</h3>
+              <ProgressBar label="Progress" current={data.goals.emergencyFundCurrent} target={data.goals.emergencyFundTarget} color="bg-blue-600" />
+              <div className="mt-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">Target</span>
+                  <div className="flex items-center">
+                    <span className="text-gray-400 mr-1">$</span>
+                    <input type="number" value={data.goals.emergencyFundTarget} onChange={e => updateGoal('emergencyFundTarget', e.target.value)}
+                      className="input-field w-28 px-2 py-1 text-right border rounded focus:outline-none" />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">Current Balance</span>
+                  <div className="flex items-center">
+                    <span className="text-gray-400 mr-1">$</span>
+                    <input type="number" value={data.goals.emergencyFundCurrent} onChange={e => updateGoal('emergencyFundCurrent', e.target.value)}
+                      className="input-field w-28 px-2 py-1 text-right border rounded focus:outline-none" />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between text-sm text-gray-500 pt-2 border-t">
+                  <span>Months to goal</span>
+                  <span className="font-medium">{Math.ceil((data.goals.emergencyFundTarget - data.goals.emergencyFundCurrent) / data.goals.monthlySavings)} months</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl p-6 shadow-sm border">
+              <h3 className="text-lg font-semibold mb-4 text-green-600">Debt Payoff</h3>
+              <div className="space-y-4">
+                {data.debts.map(d => (
+                  <div key={d.id} className="p-4 bg-gray-50 rounded-lg">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="font-medium">{d.name}</span>
+                      <span className="text-lg font-bold">${d.balance.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between text-sm text-gray-500 mb-2">
+                      <span>{d.rate}% APR</span>
+                      <span>${d.minPayment}/mo min</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-400 text-sm">$</span>
+                      <input type="number" value={d.balance} onChange={e => updateDebt(d.id, e.target.value)}
+                        className="input-field flex-1 px-2 py-1 text-sm border rounded focus:outline-none" placeholder="Update balance" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 pt-4 border-t flex justify-between font-semibold">
+                <span>Total Debt</span>
+                <span>${calc.totalDebt.toLocaleString()}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl p-6 shadow-sm border">
+            <h3 className="text-lg font-semibold mb-4">Debt Payoff Projection</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <AreaChart data={Array.from({ length: 36 }, (_, i) => {
+                const m = i + 1;
+                const auto = Math.max(0, data.debts[0].balance - (data.debts[0].minPayment + data.goals.monthlyDebtPayoff * 0.6) * m);
+                const student = Math.max(0, data.debts[1].balance - (data.debts[1].minPayment + data.goals.monthlyDebtPayoff * 0.4) * m);
+                return { month: `M${m}`, 'Auto Loan': auto, 'Student Loans': student };
+              })}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" tick={{ fontSize: 10 }} interval={5} />
+                <YAxis tickFormatter={v => `$${(v/1000).toFixed(0)}k`} />
+                <Tooltip formatter={v => `$${v.toLocaleString()}`} />
+                <Legend />
+                <Area type="monotone" dataKey="Auto Loan" stackId="1" stroke="#3b82f6" fill="#93c5fd" />
+                <Area type="monotone" dataKey="Student Loans" stackId="1" stroke="#8b5cf6" fill="#c4b5fd" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      );
+
+      // SCENARIOS PAGE
+      const ScenariosPage = () => (
+        <div className="space-y-6 fade-in">
+          <h1 className="text-2xl font-bold text-gray-900">Income Scenarios</h1>
+          <p className="text-gray-500">Plan for variable income by comparing different scenarios.</p>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[
+              { key: 'low', label: 'Conservative', color: 'border-orange-400', bg: 'bg-orange-50', income: data.income.businessLow },
+              { key: 'expected', label: 'Expected', color: 'border-blue-400', bg: 'bg-blue-50', income: data.income.businessExpected },
+              { key: 'high', label: 'Optimistic', color: 'border-green-400', bg: 'bg-green-50', income: data.income.businessHigh },
+            ].map(s => {
+              const total = s.income + data.income.paycheck + data.income.other;
+              const net = total - calc.totalExp;
+              return (
+                <div key={s.key} className={`bg-white rounded-xl p-6 shadow-sm border-2 ${s.color} ${scenario === s.key ? s.bg : ''}`}>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold">{s.label}</h3>
+                    <button onClick={() => setScenario(s.key)}
+                      className={`px-3 py-1 rounded-full text-sm font-medium transition-all ${scenario === s.key ? 'bg-blue-600 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}>
+                      {scenario === s.key ? 'Active' : 'Select'}
+                    </button>
+                  </div>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between"><span className="text-gray-600">Business Income</span><span>${s.income.toLocaleString()}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-600">Total Income</span><span className="font-bold">${total.toLocaleString()}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-600">Total Expenses</span><span>${calc.totalExp.toLocaleString()}</span></div>
+                    <hr className="my-2" />
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Net Cash Flow</span>
+                      <span className={`font-bold ${net >= 0 ? 'text-green-600' : 'text-red-500'}`}>${net.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between text-gray-500"><span>Annual Savings</span><span>${(net * 12).toLocaleString()}</span></div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-6 text-white">
+            <h3 className="text-lg font-semibold mb-3">Recommendations for Variable Income</h3>
+            <ul className="space-y-2 text-sm">
+              <li className="flex items-start gap-2"><span className="mt-0.5">✓</span> Budget based on Conservative scenario to avoid overspending</li>
+              <li className="flex items-start gap-2"><span className="mt-0.5">✓</span> Build emergency fund to 3-6 months expenses (${(calc.totalExp * 3).toLocaleString()} - ${(calc.totalExp * 6).toLocaleString()})</li>
+              <li className="flex items-start gap-2"><span className="mt-0.5">✓</span> When income exceeds conservative, put excess toward emergency fund, then debt</li>
+              <li className="flex items-start gap-2"><span className="mt-0.5">✓</span> Review and adjust budget monthly based on actual income</li>
+            </ul>
+          </div>
+        </div>
+      );
+
+      return (
+        <div className="min-h-screen bg-gray-50 flex">
+          {/* Sidebar */}
+          <aside className="w-64 bg-white border-r border-gray-200 p-4 fixed h-full hidden md:block">
+            <div className="flex items-center gap-3 mb-8 px-2">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center text-white">
+                <Icons.DollarSign />
+              </div>
+              <div>
+                <h1 className="font-bold text-gray-900">Budget Pro</h1>
+                <p className="text-xs text-gray-500">2026 Planner</p>
+              </div>
+            </div>
+            <nav className="space-y-1">
+              <NavItem icon={Icons.Home} label="Dashboard" active={activeNav === 'dashboard'} onClick={() => setActiveNav('dashboard')} />
+              <NavItem icon={Icons.CreditCard} label="Monthly Budget" active={activeNav === 'budget'} onClick={() => setActiveNav('budget')} />
+              <NavItem icon={Icons.Target} label="Subscriptions" active={activeNav === 'subscriptions'} onClick={() => setActiveNav('subscriptions')} />
+              <NavItem icon={Icons.Target} label="Goals" active={activeNav === 'goals'} onClick={() => setActiveNav('goals')} />
+              <NavItem icon={Icons.TrendingUp} label="Scenarios" active={activeNav === 'scenarios'} onClick={() => setActiveNav('scenarios')} />
+            </nav>
+            <div className="absolute bottom-4 left-4 right-4">
+              <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-4 text-white">
+                <p className="text-sm font-medium mb-1">Net Worth</p>
+                <p className="text-2xl font-bold">$70,766</p>
+                <p className="text-xs opacity-75 mt-1">+13.2% this month</p>
+              </div>
+            </div>
+          </aside>
+
+          {/* Mobile Nav */}
+          <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t z-50 flex justify-around py-2">
+            {[
+              { icon: Icons.Home, key: 'dashboard', label: 'Home' },
+              { icon: Icons.CreditCard, key: 'budget', label: 'Budget' },
+              { icon: Icons.Target, key: 'subscriptions', label: 'Subs' },
+              { icon: Icons.Target, key: 'goals', label: 'Goals' },
+              { icon: Icons.TrendingUp, key: 'scenarios', label: 'Scenarios' },
+            ].map(n => (
+              <button key={n.key} onClick={() => setActiveNav(n.key)}
+                className={`flex flex-col items-center p-2 ${activeNav === n.key ? 'text-blue-600' : 'text-gray-500'}`}>
+                <n.icon /><span className="text-xs mt-1">{n.label}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Main Content */}
+          <main className="flex-1 md:ml-64 p-4 md:p-8 pb-24 md:pb-8">
+            {activeNav === 'dashboard' && <Dashboard />}
+            {activeNav === 'budget' && <BudgetPage />}
+            {activeNav === 'subscriptions' && <SubscriptionsPage />}
+            {activeNav === 'goals' && <GoalsPage />}
+            {activeNav === 'scenarios' && <ScenariosPage />}
+          </main>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<BudgetApp />);
+  </script>
+</body>
+</html>
